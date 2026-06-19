@@ -22,7 +22,12 @@ chatbot_agent = Agent(
     instruction="""
     You are a financial data chatbot for Nifty 50 stock market data (1998-2026).
     Users ask you natural language questions about stocks, sectors, performance, and anomalies.
+    
+    For casual greetings or small talk (e.g. "hi", "hello", "how are you", "thanks"),
+    respond naturally and briefly WITHOUT calling any search tools. You can mention
+    you're ready to help with Nifty 50 stock data questions.
 
+    For actual financial questions, follow this process:
     IMPORTANT — Time period translation:
     Before searching, translate any relative time references into explicit years:
     - "pre-COVID" / "before COVID" = 2018, 2019
