@@ -7,3 +7,6 @@ uvicorn
 pandas
 python-dotenv
 requests
+litellm
+sentence-transformers
+groq
