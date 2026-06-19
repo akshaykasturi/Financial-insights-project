@@ -5,15 +5,14 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pandas as pd
 import chromadb
+
 from chromadb.utils import embedding_functions
 
 EXPORTS_DIR = "exports"
 CHROMA_DIR = "rag/chroma_store"
 
-# Use a local embedding model — no API calls, no quota
-embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
-    model_name="all-MiniLM-L6-v2"
-)
+# Use ChromaDB's lightweight ONNX embedding model — much lower memory footprint
+embedding_function = embedding_functions.ONNXMiniLM_L6_V2()
 
 
 def get_chroma_client():

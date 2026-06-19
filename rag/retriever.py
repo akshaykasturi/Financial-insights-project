@@ -4,13 +4,13 @@ import sys, os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import chromadb
+
+import chromadb
 from chromadb.utils import embedding_functions
 
 CHROMA_DIR = "rag/chroma_store"
 
-embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
-    model_name="all-MiniLM-L6-v2"
-)
+embedding_function = embedding_functions.ONNXMiniLM_L6_V2()
 
 _client = None
 _collection = None
