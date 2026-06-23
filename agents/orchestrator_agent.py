@@ -61,14 +61,23 @@ orchestrator_agent = Agent(
     model="groq/llama-3.3-70b-versatile",
     description="Orchestrates the full Nifty 50 financial insights pipeline",
     instruction="""
-        You coordinate a 3-step Nifty 50 financial pipeline:
+    You coordinate a 3-step Nifty 50 financial pipeline:
     1. validate_and_ingest_data — confirm data is loaded
     2. process_and_analyze_data — run requested analysis
     3. generate_insights_report — produce final report
 
     Run only the steps relevant to the user's request, in order.
-    Combine outputs into one response ending with a FINAL SUMMARY.
-    If a step fails, note it and continue with remaining steps.
+
+    IMPORTANT — context efficiency:
+    After each sub-agent returns its result, do NOT repeat its full text
+    back in your own reasoning. Extract only the 2-3 most important facts
+    or numbers from each result internally, then move to the next step.
+
+    Your FINAL SUMMARY should be a fresh, concise synthesis (under 150 words)
+    written in your own words — not a copy-paste or near-copy of the
+    sub-agents' full text. Focus on the most decision-relevant points only.
+
+    If a step fails, note it briefly and continue with remaining steps.
     """,
     tools=[
         validate_and_ingest_data,
