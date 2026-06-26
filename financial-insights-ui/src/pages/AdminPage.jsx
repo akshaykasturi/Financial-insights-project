@@ -4,6 +4,10 @@ import { api } from "../lib/api";
 
 
 
+
+export default function AdminPage() {
+
+  
 const [authKey, setAuthKey] = useState(localStorage.getItem("admin_key") || "");
 const [authed, setAuthed] = useState(!!authKey);
 
@@ -28,8 +32,6 @@ if (!authed) {
     </div>
   );
 }
-
-export default function AdminPage() {
   const [task, setTask] = useState(
     "Validate the data, analyze IT sector performance, and generate a 2024 insights report."
   );
