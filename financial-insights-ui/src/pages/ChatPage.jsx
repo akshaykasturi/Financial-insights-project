@@ -100,7 +100,7 @@ export default function ChatPage() {
           </div>
         )}
 
-        <div className="sticky bottom-0 bg-ink pt-3 pb-6">
+        <div className="sticky bottom-0 bg-ink pt-3 pb-6" style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}>
           {!isEmpty && (
             <div className="flex justify-end mb-2">
               <button

@@ -18,6 +18,7 @@ export default function Layout() {
           <h1 className="font-display text-2xl md:text-[26px] font-medium tracking-tight text-paper">
             Nifty<span className="text-gradient-brass"> Insights</span>
           </h1>
+          <h1 className="font-display text-lg md:text-[26px] font-medium tracking-tight text-paper"> </h1>
           <span className="hidden md:inline text-[11px] font-mono-data uppercase tracking-[0.18em] text-slate-light ml-1">
             Agentic Intelligence · Est. data 1998
           </span>
@@ -44,7 +45,7 @@ export default function Layout() {
           <NavLink
             to="/admin"
             className={({ isActive }) =>
-              `flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors duration-150 ml-2 border hairline ${
+              `flex items-center gap-2 px-3 py-2.5 rounded-md text-sm transition-colors duration-150 ml-2 border hairline ${
                 isActive
                   ? "bg-ink-card text-brass"
                   : "text-slate-light/70 hover:text-slate-light"
