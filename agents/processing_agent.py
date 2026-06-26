@@ -2,8 +2,14 @@
 
 import sys, os, asyncio
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import os
+
+os.environ["LITELLM_LOG"] = "DEBUG"
 
 from tools.retry_helper import run_with_retry
+
+import litellm
+litellm.drop_params = True
 
 from dotenv import load_dotenv
 from google.adk.agents import Agent
@@ -22,7 +28,7 @@ load_dotenv()
 
 processing_agent = Agent(
     name="ProcessingAgent",
-    model="groq/llama-3.1-8b-instant",
+    model="groq/llama-3.3-70b-versatile",
     description="Analyzes cleaned Nifty 50 Silver layer data and produces structured insights",
     instruction="""
         You are a financial data processing agent for Nifty 50 stocks.
@@ -78,7 +84,7 @@ async def run_processing_agent_async(task: str) -> str:
         return result
 
     result = await run_with_retry(_run)
-    log_run("ProcessingAgent", "success", f"Task: {task}", model="llama-3.1-8b-instant")
+    log_run("ProcessingAgent", "success", f"Task: {task}", model="groq/llama-3.3-70b-versatile")
     return result
 
 

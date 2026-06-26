@@ -1,6 +1,6 @@
 # agents/chatbot_agent.py
 
-import sys, os, asyncio
+import sys, os, re, asyncio
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from datetime import datetime
@@ -10,7 +10,7 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
-from tools.rag_tools import search_financial_data, search_by_ticker, search_by_sector
+
 from tools.file_tools import (
     get_sector_summary,
     get_top_performers_by_year,
@@ -25,91 +25,125 @@ load_dotenv()
 CURRENT_YEAR = datetime.now().year
 CURRENT_DATE_STR = datetime.now().strftime("%B %d, %Y")
 
+MAX_TURNS_KEPT = 2          # how many past exchanges to keep in full
+MAX_ANSWER_CHARS = 400      # truncate long past answers to this length when carried forward
+
+
 chatbot_agent = Agent(
     name="ChatbotAgent",
-    model="groq/llama-3.1-8b-instant",
+    model="groq/llama-3.3-70b-versatile",
     description="RAG-powered chatbot answering natural language questions about Nifty 50 stocks",
     instruction=f"""
         You are a financial data chatbot for Nifty 50 stock market data (1998-2026).
-        Today's date is {CURRENT_DATE_STR}. Always use this as ground truth for
-        interpreting "this year", "recent", "lately", "current", "now" etc.
-        Current year is {CURRENT_YEAR}. "Recent" means {CURRENT_YEAR-1}-{CURRENT_YEAR}.
-        "Last year" means {CURRENT_YEAR-1}. Never reason about "recent" using old
-        years like 2018-2020 unless the user explicitly asks about that period.
+        Today's date is {CURRENT_DATE_STR}. Current year is {CURRENT_YEAR}.
+        "Recent" means {CURRENT_YEAR-1}-{CURRENT_YEAR}. "Last year" means {CURRENT_YEAR-1}.
+
+        CONVERSATION MEMORY:
+        You'll see a short summary of recent exchanges before the current question.
+        Use it to understand follow-ups like "I don't like that, suggest something
+        else" — refer back to what was discussed without needing the full original
+        answer repeated to you.
 
         CASUAL CONVERSATION:
-        For greetings or small talk ("hi", "hello", "thanks"), respond naturally and
-        briefly WITHOUT calling any search tools.
+        For greetings or small talk, respond naturally WITHOUT calling any tools.
 
         TOOL USE — CRITICAL RULE:
-        Always call tools using the proper function-calling mechanism provided to you.
-        NEVER write out a function call as plain text in your response. If unsure
-        whether to call a tool, just call it properly — never describe a call in words.
+        Always call tools using the proper function-calling mechanism. NEVER write
+        out a function call as plain text in your response (e.g. never output
+        something like "<function=tool_name>{{...}}</function>" as visible text).
+        If you decide to use a tool, use the actual function-calling mechanism —
+        do not narrate or describe the call in your response text.
 
-        CHOOSING THE RIGHT TOOL — THIS MATTERS A LOT:
-        You have two categories of tools:
+        PARAMETER NAMING — EXACT MATCH REQUIRED:
+        Tool parameters are case-sensitive and must match EXACTLY as defined:
+        - get_sector_summary(sector: str)  — use lowercase "sector", NOT "Sector"
+        - get_ticker_summary(ticker: str)   — use lowercase "ticker"
+        - get_top_performers_by_year(year: int, top_n: int)
+        - get_data_overview() takes NO parameters — call with empty arguments
 
-        1. AGGREGATE TOOLS (prefer these for general/vague questions):
-           - get_data_overview(): dataset-wide stats
-           - get_sector_summary(sector): yearly stats for a sector
-           - get_top_performers_by_year(year, top_n): best/worst returns for a year
-           - get_ticker_summary(ticker): yearly stats for one stock
-           Use these for questions like "how's the market", "where should I invest",
-           "which sector is doing well", "top stocks this year" — anything needing
-           real statistics rather than individual anomaly events.
+        CHOOSING THE RIGHT TOOL:
+        1. AGGREGATE TOOLS (prefer for general/vague questions):
+           get_data_overview, get_sector_summary, get_top_performers_by_year,
+           get_ticker_summary
 
-        2. RAG SEARCH TOOLS (use only for specific lookups):
-           - search_financial_data, search_by_ticker, search_by_sector
-           Use these ONLY when the user asks about specific anomalies, unusual
-           events, or detailed history for a named stock/sector — not for general
-           market questions.
-
-        Always try the AGGREGATE tools FIRST for general questions. Only fall back
-        to RAG search if aggregate tools genuinely don't cover what's being asked.
+        Always try AGGREGATE tools first for general questions.
 
         TIME PERIOD TRANSLATION:
-        Translate relative time references into explicit years before calling tools:
-        - "pre-COVID" = 2018, 2019
-        - "post-COVID" = 2021, 2022, 2023
-        - "during COVID" = 2020, 2021
-        - "recent" / "lately" / "this year" / "now" = {CURRENT_YEAR}, {CURRENT_YEAR-1}
-        - "last year" = {CURRENT_YEAR-1}
+        - "pre-COVID" = 2018, 2019 | "post-COVID" = 2021, 2022, 2023
+        - "recent"/"lately"/"this year" = {CURRENT_YEAR}, {CURRENT_YEAR-1}
 
         INVESTMENT-STYLE QUESTIONS:
-        You may discuss historical patterns when asked "what should I invest in" etc.
-        1. Base suggestions STRICTLY on retrieved aggregate data (returns, volatility)
-        2. ALWAYS include this exact disclaimer in every such response:
-           "This is based on historical data only, not financial advice. Please
-           consult a licensed financial advisor before making investment decisions."
-        3. Be specific with real numbers and years from the actual data
-        4. NEVER claim certainty about future performance
+        1. Base suggestions STRICTLY on retrieved data
+        2. ALWAYS include: "This is based on historical data only, not financial
+           advice. Please consult a licensed financial advisor before making
+           investment decisions."
+        3. Never claim future certainty
 
-        WHEN A QUESTION IS TOO VAGUE EVEN FOR AGGREGATE TOOLS:
-        If a question genuinely has no clear scope (no sector, ticker, or year
-        implied, even after reasonable interpretation), say so plainly and redirect:
-        "I can give you solid answers about a specific stock, sector, or year —
-        could you narrow it down? For example: 'How is the IT sector doing in 2025?'
-        or 'Top performing stocks in 2024?'"
-        Do NOT call RAG search tools repeatedly hoping for a relevant random result
-        when the question is this vague — redirect instead.
+        WHEN TOO VAGUE: redirect plainly to ask for a specific stock/sector/year.
 
         GENERAL RULES:
-        - Base answers ONLY on retrieved/tool data — never fabricate numbers
-        - Cite specific numbers and years from tool results
-        - Be conversational but precise; keep answers focused, not overly long
+        - Base answers ONLY on tool data — never fabricate numbers
+        - Be conversational but precise; keep answers focused
     """,
     tools=[
         get_data_overview,
         get_sector_summary,
         get_top_performers_by_year,
         get_ticker_summary,
-        search_financial_data,
-        search_by_ticker,
-        search_by_sector
     ]
 )
 
+# ── Conversation history management — bounded, not unlimited ────────
+_conversation_histories = {}   # session_id -> list of (question, answer) tuples
 
+
+def _truncate(text: str, max_len: int) -> str:
+    if len(text) <= max_len:
+        return text
+    return text[:max_len].rsplit(" ", 1)[0] + "... [truncated]"
+
+
+def _build_context_prefix(session_id: str) -> str:
+    """Builds a short context summary from recent turns, bounded in size"""
+    history = _conversation_histories.get(session_id, [])
+    if not history:
+        return ""
+
+    recent = history[-MAX_TURNS_KEPT:]
+    lines = ["[Recent conversation context:]"]
+    for q, a in recent:
+        truncated_answer = _truncate(a, MAX_ANSWER_CHARS)
+        lines.append(f"User asked: {q}\nYou answered: {truncated_answer}")
+    lines.append("[End of context. Now answer the new question below.]\n")
+    return "\n".join(lines)
+
+
+def _record_turn(session_id: str, question: str, answer: str):
+    _conversation_histories.setdefault(session_id, []).append((question, answer))
+    if len(_conversation_histories[session_id]) > MAX_TURNS_KEPT * 3:
+        _conversation_histories[session_id] = _conversation_histories[session_id][-MAX_TURNS_KEPT*2:]
+
+
+def _sanitize_answer(text: str) -> str:
+    """
+    Removes any leaked function-call syntax from the model's final answer,
+    and falls back to a clean message if nothing useful remains.
+    """
+    if not text:
+        return "I wasn't able to generate a clear answer for that. Could you rephrase your question?"
+
+    # Strip any <function=...>...</function> or unclosed <function=...> tags
+    cleaned = re.sub(r"<function=.*?</function>", "", text, flags=re.DOTALL)
+    cleaned = re.sub(r"<function=.*?>", "", cleaned, flags=re.DOTALL)
+    cleaned = cleaned.strip()
+
+    if len(cleaned) < 10:
+        return "I had trouble pulling that data together. Could you try asking in a different way — for example, naming a specific sector or stock?"
+
+    return cleaned
+
+
+# ── Session management — fresh ADK session EVERY call now ───────────
 async def run_chatbot_async(question: str, session_id: str = "chat_session") -> str:
     session_service = InMemorySessionService()
     await session_service.create_session(
@@ -124,9 +158,12 @@ async def run_chatbot_async(question: str, session_id: str = "chat_session") -> 
         session_service=session_service
     )
 
+    context_prefix = _build_context_prefix(session_id)
+    full_input = f"{context_prefix}\n{question}" if context_prefix else question
+
     message = types.Content(
         role="user",
-        parts=[types.Part(text=question)]
+        parts=[types.Part(text=full_input)]
     )
 
     async def _run():
@@ -143,26 +180,41 @@ async def run_chatbot_async(question: str, session_id: str = "chat_session") -> 
                 break
         return result
 
-    result = await run_with_retry(_run)
-    log_run("ChatbotAgent", "success", f"Q: {question}", model="llama-3.1-8b-instant")
+    raw_result = await run_with_retry(_run)
+    result = _sanitize_answer(raw_result)
+    _record_turn(session_id, question, result)   # store the CLEAN version in history
+    log_run("ChatbotAgent", "success", f"Q: {question}", model="groq/llama-3.3-70b-versatile")
     return result
 
 
-def run_chatbot(question: str) -> str:
-    return asyncio.run(run_chatbot_async(question))
+def run_chatbot(question: str, session_id: str = "chat_session") -> str:
+    return asyncio.run(run_chatbot_async(question, session_id))
 
 
-if __name__ == "__main__":
-    print("Testing Updated RAG Chatbot...\n")
+def clear_session(session_id: str):
+    """Call this when user wants to start a fresh conversation"""
+    _conversation_histories.pop(session_id, None)
+
+
+
+# Replace the __main__ block with this:
+
+async def _run_test_conversation():
+    sid = "test_conversation_1"
 
     test_questions = [
-        "hey",
-        "what is the best place to invest with 1 lakh",
-        "how is the market doing recently",
-        "can you base it on data from this year"
+        "I have 1 lakh, where should I invest?",
+        "I don't like that suggestion, give me something else",
+        "what about for a budget of 2 lakhs instead?"
     ]
 
     for q in test_questions:
         print(f"Q: {q}")
-        print(f"A: {run_chatbot(q)}")
+        answer = await run_chatbot_async(q, session_id=sid)
+        print(f"A: {answer}")
         print("\n" + "="*60 + "\n")
+
+
+if __name__ == "__main__":
+    print("Testing Chatbot With Bounded Conversation Memory + Sanitization...\n")
+    asyncio.run(_run_test_conversation())

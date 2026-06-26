@@ -1,0 +1,111 @@
+@import "tailwindcss";
+
+@theme {
+  /* Color palette — Indian market ledger aesthetic */
+  --color-ink: #0B1014;
+  --color-paper: #F7F4ED;
+  --color-market-green: #1F6F50;
+  --color-market-green-bright: #2E9970;
+  --color-brick-red: #9B2C2C;
+  --color-brick-red-bright: #C23E3E;
+  --color-brass: #C9A961;
+  --color-brass-bright: #DFC077;
+  --color-slate: #5B6B73;
+  --color-slate-light: #8A969C;
+  --color-ink-soft: #161D22;
+  --color-ink-card: #1C2429;
+  --color-hairline: rgba(201, 169, 97, 0.18);
+
+  /* Typography */
+  --font-display: "Fraunces", "Georgia", serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Courier New", monospace;
+}
+
+@layer base {
+  html {
+    background-color: var(--color-ink);
+  }
+
+  body {
+    background-color: var(--color-ink);
+    color: var(--color-paper);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background-color: var(--color-brass);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brass);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+  }
+  .font-mono-data {
+    font-family: var(--font-mono);
+  }
+  .hairline {
+    border-color: var(--color-hairline);
+  }
+  .text-gradient-brass {
+    background: linear-gradient(90deg, var(--color-brass) 0%, var(--color-brass-bright) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.ticker-track {
+  animation: ticker-scroll 40s linear infinite;
+}
+
+.ticker-track:hover {
+  animation-play-state: paused;
+}
+
+/* Markdown content inside chat bubbles */
+.prose-chat p {
+  margin: 0 0 0.6em 0;
+}
+.prose-chat p:last-child {
+  margin-bottom: 0;
+}
+.prose-chat ul, .prose-chat ol {
+  margin: 0.4em 0 0.6em 1.1em;
+  padding: 0;
+}
+.prose-chat li {
+  margin-bottom: 0.25em;
+}
+.prose-chat strong {
+  color: var(--color-brass-bright);
+  font-weight: 600;
+}
+.prose-chat code {
+  font-family: var(--font-mono);
+  background: rgba(201, 169, 97, 0.12);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  font-size: 0.9em;
+}

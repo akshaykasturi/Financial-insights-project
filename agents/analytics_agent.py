@@ -5,6 +5,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from tools.retry_helper import run_with_retry
 
+import litellm
+litellm.drop_params = True
+
 from dotenv import load_dotenv
 from google.adk.agents import Agent
 from google.adk.runners import Runner
@@ -23,7 +26,7 @@ load_dotenv()
 
 analytics_agent = Agent(
     name="AnalyticsAgent",
-    model="groq/llama-3.3-70b-versatile",
+    model="gemini-2.5-flash",
     description="Generates Gold layer financial insights, anomaly reports, and investment summaries",
     instruction="""
     You are a senior financial analytics agent for Nifty 50 market data.
@@ -95,7 +98,7 @@ async def run_analytics_agent_async(task: str) -> str:
         return result
 
     result = await run_with_retry(_run)
-    log_run("AnalyticsAgent", "success", f"Task: {task}", model="llama-3.3-70b-versatile")
+    log_run("AnalyticsAgent", "success", f"Task: {task}", model="gemini-2.5-flash")
     return result
 
 

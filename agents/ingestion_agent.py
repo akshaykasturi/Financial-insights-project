@@ -4,6 +4,9 @@ import os
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import litellm
+litellm.drop_params = True
+
 from tools.retry_helper import run_with_retry
 
 from dotenv import load_dotenv
@@ -28,7 +31,7 @@ load_dotenv()
 # ── Define the Agent ──────────────────────────────────────────────
 ingestion_agent = Agent(
     name="IngestionAgent",
-    model="groq/llama-3.1-8b-instant",
+    model="gemini-2.5-flash",
     description="Validates and reports on ingested Nifty 50 financial data",
     instruction="""
         You are a financial data ingestion validation agent.
@@ -82,7 +85,7 @@ async def run_ingestion_agent_async(task: str = "Validate all ingested Nifty 50 
         return result
 
     result = await run_with_retry(_run)
-    log_run("IngestionAgent", "success", f"Task: {task}", model="llama-3.1-8b-instant")
+    log_run("IngestionAgent", "success", f"Task: {task}", model="gemini-2.5-flash")
     return result
 
 def run_ingestion_agent(task:str='Valodate all ingested Nifty 50 data and give a summary report') -> str:

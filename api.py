@@ -3,7 +3,7 @@
 import sys, os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -14,7 +14,17 @@ from agents.processing_agent import run_processing_agent_async
 from agents.analytics_agent import run_analytics_agent_async
 from tools.db_tools import get_recent_runs, get_token_usage_today
 
+from dashboard_router import router as dashboard_router
+
+ADMIN_API_KEY = os.getenv("ADMIN_API_KEY","change-this-secret")
+
+def verify_admin(x_admin_key:str = Header(None)):
+    if x_admin_key != ADMIN_API_KEY:
+        raise HTTPException(status_code=401,detail="Unauthorized")
+
 app = FastAPI(title="Financial Insights API")
+
+app.include_router(dashboard_router)
 
 # Allow Streamlit (running on a different port) to call this API
 app.add_middleware(
@@ -42,7 +52,7 @@ async def root():
 
 # ── Full Pipeline Endpoint ──────────────────────────────────────────
 @app.post("/pipeline/run")
-async def run_pipeline(request: TaskRequest):
+async def run_pipeline(request: TaskRequest, _: None = Depends(verify_admin)):
     """Runs the full orchestrator pipeline (Ingestion -> Processing -> Analytics)"""
     try:
         result = await run_orchestrator_async(request.task)
@@ -53,7 +63,7 @@ async def run_pipeline(request: TaskRequest):
 
 # ── Individual Agent Endpoints (optional, for granular control) ────
 @app.post("/agents/ingestion")
-async def run_ingestion(request: TaskRequest):
+async def run_ingestion(request: TaskRequest, _: None = Depends(verify_admin)):
     try:
         result = await run_ingestion_agent_async(request.task)
         return {"status": "success", "result": result}
@@ -62,7 +72,7 @@ async def run_ingestion(request: TaskRequest):
 
 
 @app.post("/agents/processing")
-async def run_processing(request: TaskRequest):
+async def run_processing(request: TaskRequest, _: None = Depends(verify_admin)):
     try:
         result = await run_processing_agent_async(request.task)
         return {"status": "success", "result": result}
@@ -71,7 +81,7 @@ async def run_processing(request: TaskRequest):
 
 
 @app.post("/agents/analytics")
-async def run_analytics(request: TaskRequest):
+async def run_analytics(request: TaskRequest, _: None = Depends(verify_admin)):
     try:
         result = await run_analytics_agent_async(request.task)
         return {"status": "success", "result": result}
@@ -92,13 +102,13 @@ async def chat(request: ChatRequest):
 
 # ── Monitoring Endpoints ─────────────────────────────────────────────
 @app.get("/logs/recent")
-async def recent_logs(limit: int = 10):
+async def recent_logs(limit: int = 10, _: None = Depends(verify_admin)):
     """Returns recent agent run logs"""
     return {"logs": get_recent_runs(limit)}
 
 
 @app.get("/logs/usage")
-async def token_usage():
+async def token_usage(_: None = Depends(verify_admin)):
     """Returns today's token usage by model"""
     return get_token_usage_today()
 

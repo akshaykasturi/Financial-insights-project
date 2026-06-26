@@ -11,6 +11,9 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 from tools.db_tools import log_run, get_recent_runs
+import litellm
+
+litellm.set_verbose = True
 
 load_dotenv()
 
@@ -58,7 +61,7 @@ def get_pipeline_logs() -> dict:
 # ── Orchestrator Agent ────────────────────────────────────────────
 orchestrator_agent = Agent(
     name="OrchestratorAgent",
-    model="groq/llama-3.3-70b-versatile",
+    model="gemini-2.5-flash",
     description="Orchestrates the full Nifty 50 financial insights pipeline",
     instruction="""
     You coordinate a 3-step Nifty 50 financial pipeline:
@@ -121,8 +124,8 @@ async def run_orchestrator_async(task: str) -> str:
                 break
         return result
 
-    result = await run_with_retry(_run)
-    log_run("OrchestratorAgent", "success", f"Task: {task}", model="llama-3.3-70b-versatile")
+    result = await run_with_retry(_run, max_retries=3)  # minimal retry — sub-agents already self-protect
+    log_run("OrchestratorAgent", "success", f"Task: {task},", model="gemini-2.5-flash")
     return result
 
 
