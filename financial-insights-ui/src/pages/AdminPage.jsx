@@ -204,11 +204,18 @@ export default function AdminPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="rounded-xl border hairline bg-ink-card p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-display text-lg text-paper">Recent Activity</h3>
-            <button onClick={loadLogs} className="text-slate-light hover:text-brass transition-colors">
-              <RefreshCw className="w-4 h-4" />
-            </button>
-          </div>
+  <h3 className="font-display text-lg text-paper">Recent Activity</h3>
+  <button
+    onClick={() => {
+      console.log("Refresh clicked!");
+      loadLogs();
+    }}
+    className="text-slate-light hover:text-brass transition-colors"
+  >
+    <RefreshCw className="w-4 h-4" />
+  </button>
+</div>
+
           <div className="space-y-3 max-h-96 overflow-y-auto">
             {logs.map((log, i) => (
               <div key={i} className="border-b hairline pb-3 last:border-0">
