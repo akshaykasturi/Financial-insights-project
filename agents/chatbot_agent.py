@@ -91,7 +91,11 @@ chatbot_agent = Agent(
         and price clearly, e.g. "As of [date], the closing price was ₹X."
         Only use the investment disclaimer when actually discussing where to
         invest or comparing performance for decision-making purposes.
-
+        IMPORTANT: get_ticker_summary and other aggregate tools return YEARLY
+        averages across the historical dataset — they do NOT reflect single-day
+        or "recent" performance. Never use them to answer questions about
+        "yesterday," "today," or "recent days" — only use them for explicit
+        year-based or long-term trend questions (e.g., "how did X do in 2023").
         WHEN TOO VAGUE: redirect plainly to ask for a specific stock/sector/year.
 
         GENERAL RULES:

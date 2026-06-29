@@ -1,18 +1,35 @@
 import { useEffect, useState } from "react";
+import { API_BASE } from "../lib/api";
 
-// Signature element: a scrolling ticker tape using real sector data.
-// Falls back to a static set if the API isn't reachable yet.
 const FALLBACK = [
-  { sector: "IT", value: 0.08 },
-  { sector: "Financials", value: -0.01 },
-  { sector: "Pharma", value: 0.13 },
-  { sector: "Energy", value: 0.08 },
-  { sector: "Automobile", value: 0.21 },
-  { sector: "Metals", value: 0.19 },
+  { ticker: "RELIANCE", value: 0.0 },
+  { ticker: "TCS", value: 0.0 },
+  { ticker: "HDFCBANK", value: 0.0 },
 ];
 
-export default function TickerTape({ items = FALLBACK }) {
-  const [doubled, setDoubled] = useState([...items, ...items]);
+export default function TickerTape() {
+  const [items, setItems] = useState(FALLBACK);
+  const [doubled, setDoubled] = useState([...FALLBACK, ...FALLBACK]);
+  const [asOf, setAsOf] = useState(null);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/dashboard/latest-snapshot`)
+      .then((r) => r.json())
+      .then((d) => {
+        const mapped = d.data
+          .map((row) => ({
+            ticker: row.Ticker.replace(".NS", ""),
+            value: row.Daily_Return,
+          }))
+          .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
+          .slice(0, 20);
+        setItems(mapped);
+        setAsOf(d.as_of);
+      })
+      .catch(() => {
+        // keep fallback silently — no error shown to user
+      });
+  }, []);
 
   useEffect(() => {
     setDoubled([...items, ...items]);
@@ -25,11 +42,11 @@ export default function TickerTape({ items = FALLBACK }) {
           const positive = item.value >= 0;
           return (
             <div
-              key={`${item.sector}-${i}`}
+              key={`${item.ticker}-${i}`}
               className="flex items-center gap-2 px-6 font-mono-data text-[13px] whitespace-nowrap"
             >
               <span className="text-slate-light uppercase tracking-wider">
-                {item.sector}
+                {item.ticker}
               </span>
               <span
                 className={positive ? "text-market-green-bright" : "text-brick-red-bright"}
@@ -41,6 +58,14 @@ export default function TickerTape({ items = FALLBACK }) {
           );
         })}
       </div>
+
+      {asOf && (
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 hidden md:block">
+          <span className="text-[10px] font-mono-data text-slate-light/60 bg-ink-soft px-2 py-0.5 rounded-full border hairline">
+            As of {asOf}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
