@@ -14,7 +14,7 @@ from agents.chatbot_agent import run_chatbot_async
 from agents.ingestion_agent import run_ingestion_agent_async
 from agents.processing_agent import run_processing_agent_async
 from agents.analytics_agent import run_analytics_agent_async
-from tools.db_tools import get_recent_runs, get_token_usage_today
+from tools.db_tools import log_run,get_recent_runs, get_token_usage_today
 
 from dashboard_router import router as dashboard_router
 
@@ -122,6 +122,12 @@ async def refresh_data(_: None = Depends(verify_admin)):
         if df.empty:
             raise HTTPException(status_code=500, detail="No data could be fetched")
         save_latest_snapshot(df)
+        log_run(
+            "LiveDataRefresh",
+            "success",
+            f"Refreshed {len(df)} tickers as of {df['Date'].max()}",
+            model="yfinance (no LLM)"
+        )
         return {
             "status": "success",
             "tickers_fetched": len(df),
