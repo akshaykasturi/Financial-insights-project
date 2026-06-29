@@ -1,43 +1,21 @@
 import { useState, useEffect } from "react";
-import { Play, RefreshCw, AlertTriangle } from "lucide-react";
-import { api } from "../lib/api";
-
-
-
+import { Play, RefreshCw, AlertTriangle, Lock, Database } from "lucide-react";
+import { api, API_BASE } from "../lib/api";
 
 export default function AdminPage() {
+  const [authKey, setAuthKey] = useState(localStorage.getItem("admin_key") || "");
+  const [authed, setAuthed] = useState(!!localStorage.getItem("admin_key"));
+  const [keyInput, setKeyInput] = useState("");
 
-  
-const [authKey, setAuthKey] = useState(localStorage.getItem("admin_key") || "");
-const [authed, setAuthed] = useState(!!authKey);
-
-function handleLogin(key) {
-  localStorage.setItem("admin_key", key);
-  setAuthKey(key);
-  setAuthed(true);
-}
-
-if (!authed) {
-  return (
-    <div className="flex-1 flex items-center justify-center px-4">
-      <div className="max-w-sm w-full">
-        <h2 className="font-display text-2xl text-paper mb-4">Admin Access</h2>
-        <input
-          type="password"
-          placeholder="Enter admin key"
-          onKeyDown={(e) => e.key === "Enter" && handleLogin(e.target.value)}
-          className="w-full bg-ink-soft border hairline rounded-lg px-3 py-2.5 text-paper outline-none focus:border-brass/50"
-        />
-      </div>
-    </div>
-  );
-}
   const [task, setTask] = useState(
     "Validate the data, analyze IT sector performance, and generate a 2024 insights report."
   );
   const [result, setResult] = useState(null);
   const [running, setRunning] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
+
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshResult, setRefreshResult] = useState(null);
 
   const [logs, setLogs] = useState([]);
   const [usage, setUsage] = useState(null);
@@ -48,8 +26,22 @@ if (!authed) {
   }
 
   useEffect(() => {
-    loadLogs();
-  }, []);
+    if (authed) loadLogs();
+  }, [authed]);
+
+  function handleLogin() {
+    if (!keyInput.trim()) return;
+    localStorage.setItem("admin_key", keyInput.trim());
+    setAuthKey(keyInput.trim());
+    setAuthed(true);
+  }
+
+  function handleLogout() {
+    localStorage.removeItem("admin_key");
+    setAuthKey("");
+    setAuthed(false);
+    setKeyInput("");
+  }
 
   async function runPipeline() {
     setRunning(true);
@@ -66,16 +58,74 @@ if (!authed) {
     }
   }
 
+  async function refreshLiveData() {
+    setRefreshing(true);
+    setRefreshResult(null);
+    try {
+      const res = await fetch(`${API_BASE}/admin/refresh-data`, {
+        method: "POST",
+        headers: { "X-Admin-Key": localStorage.getItem("admin_key") },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Refresh failed");
+      setRefreshResult({ status: "success", ...data });
+    } catch (err) {
+      setRefreshResult({ status: "error", message: err.message });
+    } finally {
+      setRefreshing(false);
+      loadLogs();
+    }
+  }
+
+  // ── Login gate ──────────────────────────────────────────────
+  if (!authed) {
+    return (
+      <div className="flex-1 flex items-center justify-center px-4">
+        <div className="max-w-sm w-full text-center">
+          <Lock className="w-7 h-7 text-brass mx-auto mb-4" strokeWidth={1.5} />
+          <h2 className="font-display text-2xl text-paper mb-2">Admin Access</h2>
+          <p className="text-sm text-slate-light mb-5">
+            This area is restricted. Enter the admin key to continue.
+          </p>
+          <input
+            type="password"
+            value={keyInput}
+            onChange={(e) => setKeyInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+            placeholder="Admin key"
+            autoFocus
+            className="w-full bg-ink-soft border hairline rounded-lg px-3 py-2.5 text-paper outline-none focus:border-brass/50 transition-colors mb-3 text-center"
+          />
+          <button
+            onClick={handleLogin}
+            className="w-full px-4 py-2.5 rounded-lg bg-brass text-ink font-medium text-sm hover:bg-brass-bright transition-colors"
+          >
+            Unlock
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Authenticated admin view ────────────────────────────────
   return (
     <div className="flex-1 px-4 md:px-10 py-8 max-w-5xl w-full mx-auto">
-      <div className="mb-8 flex items-center gap-3">
-        <h2 className="font-display text-3xl text-paper">Admin Panel</h2>
-        <span className="text-[11px] font-mono-data uppercase tracking-wider text-brick-red-bright border border-brick-red/30 rounded-full px-2.5 py-0.5">
-          Internal Only
-        </span>
+      <div className="mb-8 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h2 className="font-display text-3xl text-paper">Admin Panel</h2>
+          <span className="text-[11px] font-mono-data uppercase tracking-wider text-brick-red-bright border border-brick-red/30 rounded-full px-2.5 py-0.5">
+            Internal Only
+          </span>
+        </div>
+        <button
+          onClick={handleLogout}
+          className="text-xs text-slate-light hover:text-brass transition-colors"
+        >
+          Log out
+        </button>
       </div>
 
-      <div className="rounded-xl border hairline bg-ink-card p-6 mb-8">
+      <div className="rounded-xl border hairline bg-ink-card p-6 mb-6">
         <h3 className="font-display text-lg text-paper mb-1">Run Insights Pipeline</h3>
         <p className="text-sm text-slate-light mb-4">
           Triggers the Ingestion → Processing → Analytics agent chain. Takes 30–90 seconds.
@@ -112,6 +162,42 @@ if (!authed) {
           <div className="mt-5 bg-ink-soft border hairline rounded-lg p-4 text-sm text-paper leading-relaxed whitespace-pre-wrap">
             {result}
           </div>
+        )}
+      </div>
+
+      <div className="rounded-xl border hairline bg-ink-card p-6 mb-8">
+        <div className="flex items-center gap-2 mb-1">
+          <Database className="w-4 h-4 text-brass" />
+          <h3 className="font-display text-lg text-paper">Live Data Refresh</h3>
+        </div>
+        <p className="text-sm text-slate-light mb-4">
+          Pulls the latest trading day's prices for all 49 tickers via yfinance.
+          Saves as a separate snapshot — does not modify historical data.
+        </p>
+
+        <button
+          onClick={refreshLiveData}
+          disabled={refreshing}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg border hairline text-sm text-paper hover:border-brass/40 disabled:opacity-50 transition-colors"
+        >
+          {refreshing ? (
+            <RefreshCw className="w-4 h-4 animate-spin" />
+          ) : (
+            <Database className="w-4 h-4" />
+          )}
+          {refreshing ? "Fetching live data…" : "Refresh Live Data"}
+        </button>
+
+        {refreshResult && (
+          <p
+            className={`text-xs mt-3 ${
+              refreshResult.status === "success" ? "text-market-green-bright" : "text-brick-red-bright"
+            }`}
+          >
+            {refreshResult.status === "success"
+              ? `✓ Updated ${refreshResult.tickers_fetched} tickers as of ${refreshResult.as_of}`
+              : `✗ ${refreshResult.message}`}
+          </p>
         )}
       </div>
 

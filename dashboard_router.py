@@ -150,3 +150,16 @@ async def overview_stats():
         "total_records": int(len(monthly)),
         "total_anomalies": int(len(anomalies)),
     }
+
+@router.get("/latest-snapshot")
+async def latest_snapshot():
+    """Returns the most recently fetched live-ish data."""
+    path = f"{EXPORTS_DIR}/latest_snapshot.csv"
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="No live data fetched yet")
+
+    df = pd.read_csv(path)
+    return {
+        "as_of": df["Date"].max(),
+        "data": df.to_dict(orient="records"),
+    }

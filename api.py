@@ -7,6 +7,8 @@ from fastapi import FastAPI, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from daily_refresh import fetch_latest_data, save_latest_snapshot
+
 from agents.orchestrator_agent import run_orchestrator_async
 from agents.chatbot_agent import run_chatbot_async
 from agents.ingestion_agent import run_ingestion_agent_async
@@ -111,6 +113,22 @@ async def recent_logs(limit: int = 10, _: None = Depends(verify_admin)):
 async def token_usage(_: None = Depends(verify_admin)):
     """Returns today's token usage by model"""
     return get_token_usage_today()
+
+@app.post("/admin/refresh-data")
+async def refresh_data(_: None = Depends(verify_admin)):
+    """Triggers a fresh pull of live Nifty 50 data via yfinance."""
+    try:
+        df = fetch_latest_data()
+        if df.empty:
+            raise HTTPException(status_code=500, detail="No data could be fetched")
+        save_latest_snapshot(df)
+        return {
+            "status": "success",
+            "tickers_fetched": len(df),
+            "as_of": df["Date"].max(),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":

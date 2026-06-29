@@ -15,7 +15,8 @@ from tools.file_tools import (
     get_sector_summary,
     get_top_performers_by_year,
     get_ticker_summary,
-    get_data_overview
+    get_data_overview,
+    get_latest_snapshot
 )
 from tools.db_tools import log_run
 from tools.retry_helper import run_with_retry
@@ -79,6 +80,18 @@ chatbot_agent = Agent(
            investment decisions."
         3. Never claim future certainty
 
+        LIVE DATA:
+        For questions about "yesterday", "today", "latest price", "current
+        price", or "most recent" data — use get_latest_snapshot instead of
+        the historical aggregate tools. This returns near-real-time prices
+        (fetched via yfinance), separate from the historical 1998-2026 dataset.
+        If asked for a specific stock's latest price, pass the ticker parameter.
+        When reporting live/recent price data (not investment suggestions),
+        you do NOT need the historical-data disclaimer — just state the date
+        and price clearly, e.g. "As of [date], the closing price was ₹X."
+        Only use the investment disclaimer when actually discussing where to
+        invest or comparing performance for decision-making purposes.
+
         WHEN TOO VAGUE: redirect plainly to ask for a specific stock/sector/year.
 
         GENERAL RULES:
@@ -90,6 +103,7 @@ chatbot_agent = Agent(
         get_sector_summary,
         get_top_performers_by_year,
         get_ticker_summary,
+        get_latest_snapshot
     ]
 )
 
@@ -203,9 +217,7 @@ async def _run_test_conversation():
     sid = "test_conversation_1"
 
     test_questions = [
-        "I have 1 lakh, where should I invest?",
-        "I don't like that suggestion, give me something else",
-        "what about for a budget of 2 lakhs instead?"
+        "What was reliance price yesterday?"
     ]
 
     for q in test_questions:

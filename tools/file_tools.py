@@ -123,3 +123,25 @@ def get_available_tickers() -> dict:
         "tickers": tickers.to_dict(orient="records"),
         "sectors": df["Sector"].unique().tolist()
     }
+
+
+def get_latest_snapshot(ticker: str = None) -> dict:
+    """
+    Returns the most recent live trading data (fetched via yfinance).
+    If ticker is provided, filters to that ticker only.
+    """
+    path = f"{EXPORTS_DIR}/latest_snapshot.csv"
+    if not os.path.exists(path):
+        return {"error": "No live data has been fetched yet"}
+
+    df = pd.read_csv(path)
+
+    if ticker:
+        df = df[df["Ticker"].str.upper() == ticker.upper()]
+        if df.empty:
+            return {"error": f"No live data found for {ticker}"}
+
+    return {
+        "as_of": df["Date"].max(),
+        "data": df.to_dict(orient="records")
+    }
