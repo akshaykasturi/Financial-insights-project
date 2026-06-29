@@ -29,7 +29,9 @@ async function post(path, body, timeoutMs = 90000) {
 }
 
 async function get(path) {
-  const res = await fetch(`${API_BASE}${path}`);
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: adminHeaders(),
+  });
   if (!res.ok) throw new Error(`Request failed (${res.status})`);
   return await res.json();
 }

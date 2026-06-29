@@ -221,7 +221,7 @@ async def _run_test_conversation():
     sid = "test_conversation_1"
 
     test_questions = [
-        "What was reliance price yesterday?"
+        "Recent days performance of reliance"
     ]
 
     for q in test_questions:
