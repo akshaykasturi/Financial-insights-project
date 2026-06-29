@@ -21,9 +21,14 @@ export default function AdminPage() {
   const [usage, setUsage] = useState(null);
 
   function loadLogs() {
-    api.recentLogs(15).then((d) => setLogs(d.logs)).catch(() => {});
-    api.tokenUsage().then(setUsage).catch(() => {});
-  }
+  api.recentLogs(15).then((d) => {
+    console.log("Logs received:", d.logs);  // ADD THIS LINE
+    setLogs(d.logs);
+  }).catch((err) => {
+    console.log("Logs error:", err);  // ADD THIS LINE TOO
+  });
+  api.tokenUsage().then(setUsage).catch(() => {});
+}
 
   useEffect(() => {
     if (authed) loadLogs();
