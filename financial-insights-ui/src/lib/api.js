@@ -29,8 +29,9 @@ async function post(path, body, timeoutMs = 90000) {
 }
 
 async function get(path) {
+  const adminKey = localStorage.getItem("admin_key");
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: adminHeaders(),
+    headers: adminKey ? { "X-Admin-Key": adminKey } : {},
   });
   if (!res.ok) throw new Error(`Request failed (${res.status})`);
   return await res.json();
